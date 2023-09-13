@@ -1,3 +1,3 @@
-module github.com/path-network/go-path
+module github.com/RocketNodeInc/go-path
 
 go 1.20
