@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 // Client is a REST API client for Path.net
@@ -49,8 +50,7 @@ func (client *Client) GetToken(request AccessTokenRequest) error {
 
 	// Unmarshal the response body into a Token struct
 	var receivedToken Token
-	err = json.Unmarshal(body, &receivedToken)
-	if err != nil {
+	if err := json.Unmarshal(body, &receivedToken); err != nil {
 		return err
 	}
 
@@ -83,13 +83,15 @@ func (client *Client) ChangePassword(oldPassword, newPassword string) error {
 	}
 
 	var acknowledgement Acknowledgement
-	err = json.Unmarshal(body, &acknowledgement)
+	if err := json.Unmarshal(body, &acknowledgement); err != nil {
+		return err
+	}
 
 	if !acknowledgement.Acknowledged {
 		return errors.New("request was not acknowledged")
 	}
 
-	return err
+	return nil
 }
 
 // handleRequest executes the provided request and does all of the error processing. If a successful HTTP status code was received,
@@ -106,7 +108,7 @@ func (client *Client) handleRequest(req *http.Request) ([]byte, error) {
 		return nil, err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return body, err
 	}
@@ -114,42 +116,31 @@ func (client *Client) handleRequest(req *http.Request) ([]byte, error) {
 	switch resp.StatusCode {
 	case http.StatusAccepted:
 		fallthrough
+	case http.StatusCreated:
+		fallthrough
 	case http.StatusOK:
-		{
-			return body, err
-		}
+		return body, err
 	case http.StatusUnauthorized:
-		{
-			var apiError Error
-			err = json.Unmarshal(body, &apiError)
-
-			if err != nil {
-				return body, err
-			}
-			return body, errors.New(apiError.Detail)
+		var apiError Error
+		if err := json.Unmarshal(body, &apiError); err != nil {
+			return nil, err
 		}
+		return body, errors.New(apiError.Detail)
 	case http.StatusUnprocessableEntity: // ValidationError
-		{
-			var apiErrors ValidationError
-			err = json.Unmarshal(body, &apiErrors)
-
-			if err != nil {
-				return body, err
-			}
-
-			var errMsg strings.Builder
-			for _, errEntry := range apiErrors.Detail {
-				errMsg.WriteString(
-					fmt.Sprintf("\n- Message: %s\n  Type: %s\n  Location: %s", errEntry.Msg, errEntry.Type, errEntry.Loc),
-				)
-			}
-
-			return body, errors.New(errMsg.String())
+		var apiErrors ValidationError
+		if err := json.Unmarshal(body, &apiErrors); err != nil {
+			return nil, err
 		}
+
+		var errMsg strings.Builder
+		for _, errEntry := range apiErrors.Detail {
+			errMsg.WriteString(
+				fmt.Sprintf("\n- Message: %s\n  Type: %s\n  Location: %s", errEntry.Msg, errEntry.Type, errEntry.Loc),
+			)
+		}
+		return body, errors.New(errMsg.String())
 	default:
-		{
-			return body, errors.New(fmt.Sprintf("Received unexpected status code: %d", resp.StatusCode))
-		}
+		return body, errors.New(fmt.Sprintf("Received unexpected status code: %d", resp.StatusCode))
 	}
 }
 
@@ -167,10 +158,13 @@ func (client *Client) GetDiversions() (Diversions, error) {
 	if err != nil {
 		return Diversions{}, err
 	}
-	var receivedDiversions Diversions
-	err = json.Unmarshal(body, &receivedDiversions)
 
-	return receivedDiversions, err
+	var receivedDiversions Diversions
+	if err := json.Unmarshal(body, &receivedDiversions); err != nil {
+		return Diversions{}, err
+	}
+
+	return receivedDiversions, nil
 }
 
 // Fetch a single diversion
@@ -187,10 +181,13 @@ func (client *Client) GetDiversion(network string, prefixLength int) (Diversion,
 	if err != nil {
 		return Diversion{}, err
 	}
-	var receivedDiversion Diversion
-	err = json.Unmarshal(body, &receivedDiversion)
 
-	return receivedDiversion, err
+	var receivedDiversion Diversion
+	if err := json.Unmarshal(body, &receivedDiversion); err != nil {
+		return Diversion{}, err
+	}
+
+	return receivedDiversion, nil
 }
 
 // Delete a network diversion
@@ -212,10 +209,13 @@ func (client *Client) GetRules() (Rules, error) {
 	if err != nil {
 		return Rules{}, err
 	}
-	var receivedRules Rules
-	err = json.Unmarshal(body, &receivedRules)
 
-	return receivedRules, err
+	var receivedRules Rules
+	if err := json.Unmarshal(body, &receivedRules); err != nil {
+		return Rules{}, err
+	}
+
+	return receivedRules, nil
 }
 
 // Create a new firewall rule, and return the new rule made
@@ -238,9 +238,11 @@ func (client *Client) CreateRule(newRule Rule) (Rule, error) {
 	}
 
 	var createdRule Rule
-	err = json.Unmarshal(body, &createdRule)
+	if err := json.Unmarshal(body, &createdRule); err != nil {
+		return Rule{}, err
+	}
 
-	return createdRule, err
+	return createdRule, nil
 }
 
 // Retrieve a rule with the specified ID
@@ -257,10 +259,13 @@ func (client *Client) GetRule(ruleID string) (Rule, error) {
 	if err != nil {
 		return Rule{}, err
 	}
-	var receivedRule Rule
-	err = json.Unmarshal(body, &receivedRule)
 
-	return receivedRule, err
+	var receivedRule Rule
+	if err := json.Unmarshal(body, &receivedRule); err != nil {
+		return Rule{}, err
+	}
+
+	return receivedRule, nil
 }
 
 // Delete a rule. If deletion fails, an error is returned
@@ -282,10 +287,13 @@ func (client *Client) GetRateLimiters() (RateLimiters, error) {
 	if err != nil {
 		return RateLimiters{}, err
 	}
-	var receivedRateLimiters RateLimiters
-	err = json.Unmarshal(body, &receivedRateLimiters)
 
-	return receivedRateLimiters, err
+	var receivedRateLimiters RateLimiters
+	if err := json.Unmarshal(body, &receivedRateLimiters); err != nil {
+		return RateLimiters{}, err
+	}
+
+	return receivedRateLimiters, nil
 }
 
 // Update an existing rate limiter
@@ -308,9 +316,11 @@ func (client *Client) UpdateRateLimiter(rateLimiterID string, updatedRateLimiter
 	}
 
 	var newRateLimiter RateLimiter
-	err = json.Unmarshal(body, &newRateLimiter)
+	if err := json.Unmarshal(body, &newRateLimiter); err != nil {
+		return RateLimiter{}, err
+	}
 
-	return newRateLimiter, err
+	return newRateLimiter, nil
 }
 
 // Get a rate limiter by its ID
@@ -327,10 +337,13 @@ func (client *Client) GetRateLimiter(rateLimiterID string) (RateLimiter, error) 
 	if err != nil {
 		return RateLimiter{}, err
 	}
-	var receivedRateLimiter RateLimiter
-	err = json.Unmarshal(body, &receivedRateLimiter)
 
-	return receivedRateLimiter, err
+	var receivedRateLimiter RateLimiter
+	if err := json.Unmarshal(body, &receivedRateLimiter); err != nil {
+		return RateLimiter{}, err
+	}
+
+	return receivedRateLimiter, nil
 }
 
 // Delete a rule. If deletion fails, an error is returned
@@ -352,10 +365,13 @@ func (client *Client) GetAttackHistory() (AttackHistory, error) {
 	if err != nil {
 		return AttackHistory{}, err
 	}
-	var receivedAttackHistory AttackHistory
-	err = json.Unmarshal(body, &receivedAttackHistory)
 
-	return receivedAttackHistory, err
+	var receivedAttackHistory AttackHistory
+	if err := json.Unmarshal(body, &receivedAttackHistory); err != nil {
+		return AttackHistory{}, err
+	}
+
+	return receivedAttackHistory, nil
 }
 
 // Fetch the announcement history for all hosts under your account
@@ -372,10 +388,13 @@ func (client *Client) GetAnnouncementHistory() (AnnouncementHistory, error) {
 	if err != nil {
 		return AnnouncementHistory{}, err
 	}
-	var receivedAnnouncementHistory AnnouncementHistory
-	err = json.Unmarshal(body, &receivedAnnouncementHistory)
 
-	return receivedAnnouncementHistory, err
+	var receivedAnnouncementHistory AnnouncementHistory
+	if err := json.Unmarshal(body, &receivedAnnouncementHistory); err != nil {
+		return AnnouncementHistory{}, err
+	}
+
+	return receivedAnnouncementHistory, nil
 }
 
 // Retrieve all application filters
@@ -392,10 +411,13 @@ func (client *Client) GetFilters() (Filters, error) {
 	if err != nil {
 		return Filters{}, err
 	}
-	var receivedFilters Filters
-	err = json.Unmarshal(body, &receivedFilters)
 
-	return receivedFilters, err
+	var receivedFilters Filters
+	if err := json.Unmarshal(body, &receivedFilters); err != nil {
+		return Filters{}, err
+	}
+
+	return receivedFilters, nil
 }
 
 // Retrieve all application filters available to your account
@@ -412,10 +434,13 @@ func (client *Client) GetAvailableFilters() (Filters, error) {
 	if err != nil {
 		return Filters{}, err
 	}
-	var receivedFilters Filters
-	err = json.Unmarshal(body, &receivedFilters)
 
-	return receivedFilters, err
+	var receivedFilters Filters
+	if err := json.Unmarshal(body, &receivedFilters); err != nil {
+		return Filters{}, err
+	}
+
+	return receivedFilters, nil
 }
 
 // Create a new application filter
@@ -432,10 +457,13 @@ func (client *Client) CreateFilter(filterType string) (Filter, error) {
 	if err != nil {
 		return Filter{}, err
 	}
-	var createdFilter Filter
-	err = json.Unmarshal(body, &createdFilter)
 
-	return createdFilter, err
+	var createdFilter Filter
+	if err := json.Unmarshal(body, &createdFilter); err != nil {
+		return Filter{}, err
+	}
+
+	return createdFilter, nil
 }
 
 // Delete a REST API service
@@ -453,14 +481,17 @@ func (client *Client) deleteResource(loc string) error {
 	if err != nil {
 		return err
 	}
+
 	var acknowledgement Acknowledgement
-	err = json.Unmarshal(body, &acknowledgement)
+	if err := json.Unmarshal(body, &acknowledgement); err != nil {
+		return err
+	}
 
 	if !acknowledgement.Acknowledged {
 		return errors.New("request was not acknowledged")
 	}
 
-	return err
+	return nil
 }
 
 // Delete a filter. If deletion fails, an error is returned
@@ -471,12 +502,21 @@ func (client *Client) DeleteFilter(filterType, filterID string) error {
 // Create a new Path API client and fetch an access token
 func NewClient(tokenRequest AccessTokenRequest) (Client, error) {
 	client := Client{
-		token:      Token{},
-		httpClient: &http.Client{},
-		baseURL:    "https://api.path.net",
+		token: Token{},
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+		baseURL: "https://api.path.net",
 	}
 
 	err := client.GetToken(tokenRequest)
+
+	switch client.token.TokenType {
+	case "bearer":
+		client.token.TokenType = AuthorizationTokenBearer
+	default:
+		client.token.TokenType = AuthorizationTokenBearer
+	}
 
 	return client, err
 }

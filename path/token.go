@@ -1,18 +1,27 @@
 package path
 
+// AuthorizationTokenType represents the type of authorization token.
+type AuthorizationTokenType string
+
+// AuthorizationToken types
+const (
+	// Default token type Bearer
+	AuthorizationTokenBearer AuthorizationTokenType = "Bearer"
+)
+
 // Token holds the data returned from the /token endpoint after successful authentication
 type Token struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
+	AccessToken string                 `json:"access_token"`
+	TokenType   AuthorizationTokenType `json:"token_type"`
 }
 
 // AccessTokenRequest holds the necessary data that the /token endpoint expects
 type AccessTokenRequest struct {
-	GrantType    string `json:"grant_type"`
+	GrantType string `json:"grant_type"`
 
 	// Required
-	Username     string `json:"username"`
-	Password     string `json:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 
 	Scope        string `json:"scope"`
 	ClientID     string `json:"client_id"`
