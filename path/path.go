@@ -490,9 +490,15 @@ func (client *Client) GetAvailableFilters() (Filters, error) {
 }
 
 // Create a new application filter
-func (client *Client) CreateFilter(filterType string) (Filter, error) {
+func (client *Client) CreateFilter(filterType string, payload FilterSettings) (Filter, error) {
 	endpoint := fmt.Sprintf("%s/filters/%s", client.baseURL, filterType)
-	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
+
+	jsonBody, err := json.Marshal(payload)
+	if err != nil {
+		return Filter{}, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return Filter{}, err
 	}
