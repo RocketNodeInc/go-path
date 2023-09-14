@@ -509,7 +509,9 @@ func NewClient(tokenRequest AccessTokenRequest) (Client, error) {
 		baseURL: "https://api.path.net",
 	}
 
-	err := client.GetToken(tokenRequest)
+	if err := client.GetToken(tokenRequest); err != nil {
+		return Client{}, err
+	}
 
 	switch client.token.TokenType {
 	case "bearer":
@@ -518,5 +520,17 @@ func NewClient(tokenRequest AccessTokenRequest) (Client, error) {
 		client.token.TokenType = AuthorizationTokenBearer
 	}
 
-	return client, err
+	return client, nil
+}
+
+// Create a new Path API client and use an existing access token
+func NewClientWithToken(token string) Client {
+	client := Client{
+		token: Token{AccessToken: token, TokenType: AuthorizationTokenBearer},
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+		baseURL: "https://api.path.net",
+	}
+	return client
 }
