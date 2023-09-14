@@ -4,9 +4,17 @@ type Filters struct {
 	Filters []Filter `json:"filters"`
 }
 
+type FilterSettings struct {
+	Address string `json:"addr"`
+	UDPPort int    `json:"port"`
+	TCPPort int    `json:"tcp_port"`
+	Strict  bool   `json:"strict"`
+}
+
 type Filter struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID       string         `json:"id"`
+	Name     string         `json:"name"`
+	Settings FilterSettings `json:"settings"`
 }
 
 type FiltersOptions struct {
