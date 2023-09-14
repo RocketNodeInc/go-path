@@ -218,6 +218,29 @@ func (client *Client) GetRules() (Rules, error) {
 	return receivedRules, nil
 }
 
+// Fetch all rules matching a specific destination for your account
+func (client *Client) GetRulesWithDestination(destination string) (Rules, error) {
+	endpoint := client.baseURL + "/rules?destination=" + destination
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return Rules{}, err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	body, err := client.handleRequest(req)
+	if err != nil {
+		return Rules{}, err
+	}
+
+	var receivedRules Rules
+	if err := json.Unmarshal(body, &receivedRules); err != nil {
+		return Rules{}, err
+	}
+
+	return receivedRules, nil
+}
+
 // Create a new firewall rule, and return the new rule made
 func (client *Client) CreateRule(newRule Rule) (Rule, error) {
 	endpoint := client.baseURL + "/rules"
@@ -400,6 +423,29 @@ func (client *Client) GetAnnouncementHistory() (AnnouncementHistory, error) {
 // Retrieve all application filters
 func (client *Client) GetFilters() (Filters, error) {
 	endpoint := client.baseURL + "/filters"
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return Filters{}, err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	body, err := client.handleRequest(req)
+	if err != nil {
+		return Filters{}, err
+	}
+
+	var receivedFilters Filters
+	if err := json.Unmarshal(body, &receivedFilters); err != nil {
+		return Filters{}, err
+	}
+
+	return receivedFilters, nil
+}
+
+// Retrieve all application filters matching a specific destination
+func (client *Client) GetFiltersWithDestination(destination string) (Filters, error) {
+	endpoint := client.baseURL + "/filters?addr=" + destination
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return Filters{}, err
